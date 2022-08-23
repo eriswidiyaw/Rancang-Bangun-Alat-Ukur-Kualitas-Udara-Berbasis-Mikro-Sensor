@@ -1,0 +1,189 @@
+#include <Wire.h>
+#include <MechaQMC5883.h>
+
+const int chipSelect = 10;
+MechaQMC5883 qmc;
+const int hallSensorPin = 2;                      // pin untuk sensor hall effect 
+const unsigned long sampleTime = 1000;
+const int maxRPM = 1260;                  // jumlah putaran permenit maksimum yang ditampilkan dalam LCD
+int rpmMaximum = 0;
+ 
+
+void setup() {
+  Wire.begin();
+  pinMode(hallSensorPin,INPUT);
+  Serial.begin(9600);
+  qmc.init();
+  //qmc.setMode(Mode_Continuous,ODR_200Hz,RNG_2G,OSR_256);
+}
+
+void loop() {  
+  int rpm = getRPM();
+  if (rpm > rpmMaximum) rpmMaximum = rpm;
+  displayRPM(rpm);
+  displayBar(rpm);
+ uint16_t x, y, z;
+  //float azimuth; 
+  qmc.read(&x, &y, &z);
+  uint16_t azimuth = qmc.azimuth(&y,&x);//bebas
+  float v = (rpm/60*3.14159*0.015)+0.1;
+  float sp = v*3.6;
+  
+  Serial.print("x: ");
+  Serial.print(x);
+  Serial.print(" y: ");
+  Serial.print(y);
+  Serial.print(" z: ");
+  Serial.print(z);
+  Serial.print(" a: ");
+  Serial.print(azimuth);
+      if ((azimuth >= 0) and (azimuth <= 22))
+    Serial.print(" ,N ");
+   if ((azimuth > 22) and (azimuth < 45))
+    Serial.print(" ,NNE ");
+       if ((azimuth >= 45) and (azimuth <= 67))
+    Serial.print(" ,NE ");
+       if ((azimuth > 67) and (azimuth < 90))
+    Serial.print(" ,ENE ");
+      if ((azimuth >= 90 ) and (azimuth <= 112))
+    Serial.print(" ,E ");
+      if ((azimuth > 112) and (azimuth < 135))
+    Serial.print(" ,ESE ");
+      if ((azimuth >= 135) and (azimuth <= 157))
+    Serial.print(" ,SE ");
+     if ((azimuth > 157) and (azimuth < 180))
+    Serial.print(" ,SSE ");
+     if ((azimuth >= 180) and (azimuth <= 202))
+    Serial.print(" ,S ");
+      if ((azimuth > 202) and (azimuth < 225))
+    Serial.print(" ,SSW ");
+       if ((azimuth >= 225) and (azimuth <= 247))
+    Serial.print(" ,SW ");
+      if ((azimuth > 247) and (azimuth < 270))
+    Serial.print(" ,WSW ");
+       if ((azimuth >= 270) and (azimuth <= 292))
+    Serial.print(" ,W ");
+    if ((azimuth > 292) and (azimuth < 315))
+    Serial.print(" ,WNW ");
+       if ((azimuth >= 315) and (azimuth <= 337))
+    Serial.print(" ,NW ");
+       if ((azimuth > 337) and (azimuth <= 360))
+    Serial.print(" ,NNW ");
+    Serial.print("RPM = ");
+   Serial.print(rpm);
+   Serial.print("  MAX RPM = ");
+   Serial.print(rpmMaximum);
+    Serial.println();
+  Serial.println();
+
+//   dataFile.print("  Velocity = ");
+//   if ((rpm >= 0) and (rpm <60))
+//   dataFile.print(0);
+//   if ((rpm >= 60) and (rpm <1260))
+//   dataFile.print(v);
+//   dataFile.print("  ,m/s");
+//
+//   dataFile.print("  speed = ");
+//   if ((rpm >= 0) and (rpm <60))
+//   dataFile.print(0);
+//   if ((rpm >= 60) and (rpm <1260))
+//   dataFile.print(sp);
+//   dataFile.print("  ,km/h  ,");
+//   dataFile.print(" ,a: ");
+//   dataFile.print(azimuth);
+//     if ((azimuth >= 0) and (azimuth <= 22))
+//    dataFile.print(" ,N ");
+//   if ((azimuth > 22) and (azimuth < 45))
+//    dataFile.print(" ,NNE ");
+//       if ((azimuth >= 45) and (azimuth <= 67))
+//    dataFile.print(" ,NE ");
+//       if ((azimuth > 67) and (azimuth < 90))
+//    dataFile.print(" ,ENE ");
+//      if ((azimuth >= 90 ) and (azimuth <= 112))
+//    dataFile.print(" ,E ");
+//      if ((azimuth > 112) and (azimuth < 135))
+//    dataFile.print(" ,ESE ");
+//      if ((azimuth >= 135) and (azimuth <= 157))
+//    dataFile.print(" ,SE ");
+//     if ((azimuth > 157) and (azimuth < 180))
+//    dataFile.print(" ,SSE ");
+//     if ((azimuth >= 180) and (azimuth <= 202))
+//    dataFile.print(" ,S ");
+//      if ((azimuth > 202) and (azimuth < 225))
+//    dataFile.print(" ,SSW ");
+//       if ((azimuth >= 225) and (azimuth <= 247))
+//    dataFile.print(" ,SW ");
+//      if ((azimuth > 247) and (azimuth < 270))
+//    dataFile.print(" ,WSW ");
+//       if ((azimuth >= 270) and (azimuth <= 292))
+//    dataFile.print(" ,W ");
+//    if ((azimuth > 292) and (azimuth < 315))
+//    dataFile.print(" ,WNW ");
+//       if ((azimuth >= 315) and (azimuth <= 337))
+//    dataFile.print(" ,NW ");
+//       if ((azimuth > 337) and (azimuth <= 360))
+//    dataFile.print(" ,NNW ");
+//    dataFile.print("RPM : ");
+//    dataFile.print(rpm);
+//    dataFile.print("  ,MAX RPM : ");
+//    dataFile.print(rpmMaximum);
+//    dataFile.println();
+//    dataFile.close();
+  delay(100);
+}
+
+
+int getRPM()
+{
+  int count = 0;
+  boolean countFlag = LOW;
+  unsigned long currentTime = 0;
+  unsigned long startTime = millis();
+  while (currentTime <= sampleTime)
+  {
+    if (digitalRead(hallSensorPin) == HIGH)
+    {
+      countFlag = HIGH;
+    }
+    if (digitalRead(hallSensorPin) == LOW && countFlag == HIGH)
+    {
+      count++;
+      countFlag=LOW;
+    }
+    currentTime = millis() - startTime;
+  }
+  int countRpm = int(60000/float(sampleTime))*count;
+  return countRpm;
+}
+    
+void displayRPM(int rpm) 
+{
+
+  float  v = (rpm/60*3.14159*0.015)+0.1;
+  float sp=v*3.6;
+  Serial.print("  Velocity = ");
+   if ((rpm >= 0) and (rpm <60))
+    Serial.print(0);
+   if ((rpm >= 60) and (rpm <1260))
+    Serial.print(v);
+    Serial.print("  ,m/s");
+
+    Serial.print("  speed = ");
+   if ((rpm >= 0) and (rpm <60))
+    Serial.print(0);
+   if ((rpm >= 60) and (rpm <1260))
+    Serial.print(sp);
+    Serial.print("  ,km/h  ,");
+
+}
+
+void displayBar(int rpm)
+{
+  int numOfBars=map(rpm,0,maxRPM,0,15);
+
+  if (rpm!=0)
+  {
+  for (int i=0; i<=numOfBars; i++);
+  
+  }
+} 
