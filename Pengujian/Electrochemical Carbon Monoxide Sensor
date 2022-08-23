@@ -1,0 +1,38 @@
+const int InGas = A0;
+const int InRef = A1;
+const int InTemp = A2;
+
+void setup(){
+  Serial.begin(9600);
+  Serial.println("CO Sensor Test");
+  Serial.println();
+}
+
+void loop(){
+  //Read voltage
+  int ADC_Vgas = analogRead(InGas);
+  int ADC_Vref = analogRead(InRef);
+  int ADC_Vtemp = analogRead(InTemp);
+  
+  float Vgas = ADC_Vgas * (3300/1024.0);
+  float Vref = ADC_Vref * (3300/1024.0);
+  float Vtemp = ADC_Vtemp * (3300/1024.0);
+
+  Serial.print("ADC Vgas = ");
+  Serial.print(ADC_Vgas);
+  Serial.print(", Vgas : ");
+  Serial.print(Vgas);
+
+  Serial.print(" mv, ADC Vref = ");
+  Serial.print(ADC_Vref);
+  Serial.print(", Vref : ");
+  Serial.print(Vref);
+
+  Serial.print(" mv, ADC Vtemp : ");
+  Serial.print(ADC_Vtemp);
+  Serial.print(", Vtemp : ");
+  Serial.print(Vtemp);
+  Serial.println(" mv");
+  
+  delay(1000);
+}
