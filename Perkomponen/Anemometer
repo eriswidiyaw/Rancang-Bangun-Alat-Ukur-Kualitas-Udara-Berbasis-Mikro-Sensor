@@ -1,0 +1,72 @@
+# define windPin2  // Mendefinisikan pin
+
+// Mendefinisikan konstanta
+const float pi = 3.14159265; // angka phi
+int period = 10000; // periode pengukuran (mili detik)
+int delaytime = 10000; // waktu delay (mili detik)
+int radio = 90; // jarak (mm)
+int jml_celah = 18; // jumlah celah sensor
+
+// Definisi variabel
+unsigned int Sample = 0; // nomor sampel
+unsigned int counter = 0; // B/W counter untuk sensor
+unsigned int RPM = 0; // Jumlah putaran per menit
+float speedwind = 0; // Kecepatan angin (m/s)
+
+void setup()
+{
+// Mengatur pin
+pinMode(2, INPUT);
+digitalWrite(2, HIGH);
+
+// Mengatur serial port ke 9600
+Serial.begin(9600);
+
+}
+
+void loop()
+{
+Sample++;
+//Serial.print(Sample);
+//Serial.print(": Start measurement…");
+windvelocity();
+//Serial.println(" finished.");
+//Serial.print("Counter: ");
+//Serial.print(counter);
+//Serial.print("; RPM: ");
+RPMcalc();
+//Serial.print(RPM);
+Serial.print(" Wind speed: ");
+WindSpeed();
+Serial.print(speedwind);
+Serial.print(" [m/s]");
+Serial.println();
+delay(5000);
+}
+
+// Measure wind speed
+void windvelocity()
+{
+speedwind = 0;
+counter = 0;
+attachInterrupt(0, addcount, CHANGE);
+unsigned long millis();
+long startTime = millis();
+while(millis() < startTime + period) {}
+
+detachInterrupt(1);
+}
+
+void RPMcalc()
+{
+RPM=((counter/jml_celah)*60)/(period/1000); // Menghitung jumlah putaran per menit
+
+void WindSpeed()
+{
+speedwind = ((2 * pi * radio * RPM)/60) / 1000; // Menghitung kecepatan angin m/s
+}
+
+void addcount()
+{
+counter++;
+}
