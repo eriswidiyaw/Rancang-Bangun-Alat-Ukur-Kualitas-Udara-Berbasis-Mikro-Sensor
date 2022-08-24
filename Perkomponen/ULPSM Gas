@@ -1,0 +1,164 @@
+#include "Arduino.h"
+#include "ULP.h"
+
+const int C1 = A0; 
+const int T1 = A1;
+//const int C2 = A2;
+//const int T2 = A3;
+//const int C3 = A4;
+//const int T3 = A5;
+//const int C4 = A6;
+//const int T4 = A7;
+//const int C5 = A8;
+//const int T5 = A9;
+
+const float Sf1 = 164.20;   
+//const float Sf2 = -31.01; 
+//const float Sf3 = 30.49;
+//const float Sf4 = 164.20;
+//const float Sf5 = -56.67;
+
+float temp1 /*temp2, temp3, temp4, temp5*/;
+float Vzero1 /*, Vzero2, Vzero3, Vzero4, Vzero5*/;
+float zero1 /*, zero2, zero3, zero4, zero5*/;
+float TZero1/*, TZero2, TZero3, TZero4, TZero5*/;
+float vgas1/*, vgas2, vgas3, vgas4, vgas5*/;
+float cREV1/*, cREV2, cREV3, cREV4, cREV5*/;
+
+//CO sensor1(C1, T1, Sf1);  
+//NO2 sensor2(C2, T2, Sf2); 
+//SO2 sensor3 (C3,T3, Sf3);
+H2S sensor1 (C1, T1, Sf1);
+//O3 sensor5 (C5, T5, Sf5);
+
+void setup() {
+  Serial.flush();
+  Serial.begin(9600);    
+  Serial.println();
+  Serial.println("Setting Up");
+
+  Serial.print("Vsup for all sensors = ");
+  Serial.println(ULP::_Vsup);
+  Serial.print("Vcc for all sensors = ");
+  Serial.println(ULP::_Vcc);
+  Serial.print("Vref for sensor 1 = ");
+  Serial.println(sensor1._Vref);
+//  Serial.print("Vref for sensor 2 = ");
+//  Serial.println(sensor2._Vref);
+//  Serial.print("Vref for sensor 3 = ");
+//  Serial.println(sensor3._Vref);
+//  Serial.print("Vref for sensor 4 = ");
+//  Serial.println(sensor4._Vref);
+//  Serial.print("Vref for sensor 5 = ");
+//  Serial.println(sensor5._Vref);
+  
+
+  Serial.print("Vzero1 = ");
+  Serial.println(Vzero1 = sensor1.zero());   
+  Serial.print("Tzero1 = ");
+  Serial.println(sensor1._Tz);
+
+//  Serial.print("Vzero2 = ");
+//  Serial.println(Vzero2 = sensor2.zero());   
+//  Serial.print("Tzero2 = ");
+//  Serial.println(sensor2._Tz);
+//
+//  Serial.print("Vzero3 = ");
+//  Serial.println(Vzero3 = sensor3.zero());   
+//  Serial.print("Tzero3 = ");
+//  Serial.println(sensor3._Tz);
+//
+//  Serial.print("Vzero4 = ");
+//  Serial.println(Vzero4 = sensor4.zero());   
+//  Serial.print("Tzero4 = ");
+//  Serial.println(sensor4._Tz);
+//
+//  Serial.print("Vzero5 = ");
+//  Serial.println(Vzero5 = sensor5.zero());   
+//  Serial.print("Tzero5 = ");
+//  Serial.println(sensor5._Tz);
+//
+//  
+//  Serial.println("Finished Setting Up");
+//  Serial.println("T1, T2, T3, T4, T5, mV1, mV2, mV3, mV4, mV5, vGas1, vGas2, vGas3, vGas4, vGas5, Concentration1, Concentration2, Concentration3, Concentration4, Concentration5, Corrected span1, Corrected span2, Corrected span3, Corrected span4, Corrected span5 ");
+    Serial.println ("T, mV, vGas, Concentration, Corrected Span, vRef ");
+}
+
+void loop() {
+  
+  temp1 = sensor1.getTemp(1,"C"); 
+//  temp2 = sensor2.getTemp(1,"C"); 
+//  temp3 = sensor3.getTemp(1,"C");
+//  temp4 = sensor4.getTemp(1,"C"); 
+//  temp5 = sensor5.getTemp(1,"C");
+
+  vgas1 = sensor1.getVgas(1);
+//  vgas2 = sensor2.getVgas(1);
+//  vgas3 = sensor3.getVgas(1);
+//  vgas4 = sensor4.getVgas(1);
+//  vgas5 = sensor5.getVgas(1)/1000;
+  
+  cREV1 = vgas1;
+//  cREV2 = vgas2;
+//  cREV3 = vgas3;  
+//  cREV4 = vgas4;
+//  cREV5 = (vgas5*23.5)/1000; 
+  
+  Serial.print(temp1);
+  Serial.print(", ");
+//  Serial.print(temp2);
+//  Serial.print(", ");
+//  Serial.print(temp3);
+//  Serial.print(", ");
+//  Serial.print(temp4);
+//  Serial.print(", ");
+//  Serial.print(temp5);
+//  Serial.print(", ");
+
+  Serial.print(sensor1.getVgas(1));//mv
+  Serial.print(", ");
+//  Serial.print(sensor2.getVgas(1));//mv
+//  Serial.print(", ");
+//  Serial.print(sensor3.getVgas(1));//mv
+//  Serial.print(", ");
+//  Serial.print(sensor4.getVgas(1));//mv
+//  Serial.print(", ");
+//  Serial.print(sensor5.getVgas(1));//mv
+ 
+  //Serial.print(", ");
+  Serial.print(vgas1);
+  Serial.print(", ");
+//  Serial.print(vgas2);
+//  Serial.print(", ");
+//  Serial.print(vgas3);
+//  Serial.print(", ");
+//  Serial.print(vgas5);
+//  Serial.print(", ");
+  
+  Serial.print(cREV1);
+  Serial.print(", ");
+//  Serial.print(cREV2);
+//  Serial.print(", ");
+//  Serial.print(cREV2);
+//  Serial.print(", ");
+//  Serial.print(cREV3);
+//  Serial.print(", ");
+//  Serial.print(cREV4);
+//  Serial.print(", ");
+//  Serial.print(cREV5);
+//  Serial.print(", ");
+// 
+  Serial.print(sensor1.getConc(1,sensor1.getTemp(1)));
+  Serial.print(", ");
+  //Serial.print("Vref for sensor 1 = ");
+  Serial.println(sensor1._Vref);
+//  Serial.print(sensor2.getConc(1,sensor2.getTemp(1)));
+//  Serial.print(", ");
+//  Serial.print(sensor3.getConc(1,sensor3.getTemp(1)));
+//  Serial.print(", ");
+//  Serial.print(sensor4.getConc(1,sensor4.getTemp(1)));
+//  Serial.print(", ");
+//  Serial.println(sensor5.getConc(1,sensor5.getTemp(1)));
+
+  delay(60000);
+}
