@@ -1,0 +1,152 @@
+
+int timing = 300; //set the moving average
+
+#include <Wire.h>
+#include <RTC.h>
+
+#include <SPI.h>
+#include <SD.h>
+
+static DS3231 RTC;
+
+const int chipSelect = 53;
+
+void setup(){
+  Serial1.begin(9600);
+  Serial.begin(9600);
+
+  while (!Serial)
+  {;}
+
+  Serial.print("Initializing SD card...");
+  if (!SD.begin(chipSelect)) 
+  {
+    Serial.println("Card failed, or not present");
+    while (1);
+  }
+  Serial.println("Card initialized.");
+  RTC.begin();
+
+  Serial.print("Is Clock Running: ");
+  if (RTC.isRunning())
+  {
+    Serial.println("Yes");
+    Serial.print(RTC.getDay());
+    Serial.print("-");
+    Serial.print(RTC.getMonth());
+    Serial.print("-");
+    Serial.print(RTC.getYear());
+    Serial.print(" ");
+    Serial.print(RTC.getHours());
+    Serial.print(":");
+    Serial.print(RTC.getMinutes());
+    Serial.print(":");
+    Serial.print(RTC.getSeconds());
+    Serial.print("");
+    if (RTC.getHourMode() == CLOCK_H12)
+    {
+      switch (RTC.getMeridiem()) {
+      case HOUR_AM:
+        Serial.print(" AM");
+        break;
+      case HOUR_PM:
+        Serial.print(" PM");
+        break;
+      }
+    }
+    Serial.println("");
+    delay(1000);
+  }
+  else
+  {
+    delay(1500);
+
+    Serial.println("No");
+    Serial.println("Setting Time");
+    //RTC.setHourMode(CLOCK_H12);
+    RTC.setHourMode(CLOCK_H24);
+    RTC.setDateTime(__DATE__, __TIME__);
+    Serial.println("New Time Set");
+    Serial.print(__DATE__);
+    Serial.print(" ");
+    Serial.println(__TIME__);
+    RTC.startClock();
+  }
+
+  delay(5000);
+
+  Serial.flush();
+  Serial1.flush();
+  
+  delay(1000);
+  Serial1.write('A');
+  delay(1000);
+  Serial1.print(timing);
+  delay(500);
+  Serial1.write('\r');
+  delay(2000);
+
+  while (Serial1.available()) // read from SDK port, send to Serial port to interupt send 'c' without line ending
+  {
+    int inByte = Serial1.read();
+    Serial.write(inByte);
+  }
+  Serial.println();
+
+  Serial.println("Finished Setup");
+  Serial.println("Sensor #, Conc.(PPB), Temp.(C), Rh (%),Conc. (Counts), Temp. (Counts), Rh (%Counts), Days, Hours, Minutes, Seconds");
+  Serial1.write('c');
+}
+
+void loop(){
+  File dataFile = SD.open("ozlap.txt", FILE_WRITE);
+  if (dataFile)
+  {
+    dataFile.print(RTC.getDay());
+    dataFile.print("/");
+    dataFile.print(RTC.getMonth());
+    dataFile.print("/");
+    dataFile.print(RTC.getYear());
+    dataFile.print(" ");
+    dataFile.print(RTC.getHours());
+    dataFile.print(":");
+    dataFile.print(RTC.getMinutes());
+    dataFile.print(":");
+    dataFile.print(RTC.getSeconds());
+    dataFile.print(", Oz : ");
+
+    while (Serial1.available()) // read from SDK port, send to Serial port to interupt continuous output send 'c' without line ending, may have to send more than once.
+    {
+      int inByte = Serial1.read();
+      Serial.write(inByte);
+      dataFile.write(inByte);
+    }
+    
+    dataFile.close();
+    
+  } else {
+    Serial.println("error opening datalogger");
+  }
+
+  while (Serial.available()) // read from Serial port, send to port SDK port
+  {
+    int inByte = Serial.read();
+    Serial1.write(inByte);
+    delay(100);
+  }
+
+  Serial.print(RTC.getDay());
+  Serial.print("/");
+  Serial.print(RTC.getMonth());
+  Serial.print("/");
+  Serial.print(RTC.getYear());
+  Serial.print(" ");
+  Serial.print(RTC.getHours());
+  Serial.print(":");
+  Serial.print(RTC.getMinutes());
+  Serial.print(":");
+  Serial.print(RTC.getSeconds());
+  Serial.println("");
+  Serial.println();
+  delay(1000);
+}
