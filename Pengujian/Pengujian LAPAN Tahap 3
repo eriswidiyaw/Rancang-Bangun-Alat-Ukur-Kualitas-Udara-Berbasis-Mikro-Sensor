@@ -1,0 +1,401 @@
+#include <SD.h>
+#include  <Wire.h>
+#include "RTClib.h"
+#include "DHT.h"
+#define DHTPIN 7 
+#define DHTTYPE DHT22 
+#include "Arduino.h"
+#include "ULP.h"
+#include <Arduino.h>
+#define LENG 31  
+#include <SoftwareSerial.h>
+#include <String.h>
+SoftwareSerial mySerial(10,11 );
+unsigned char buf[LENG];
+int PM01Value=0;
+int PM2_5Value=0;        
+int PM10Value=0;         
+const int C1 = A1;
+const int T1 = A2;
+const int C2 = A3;
+const int T2 = A4;
+const int C3 = A5;
+const int T3 = A6;
+const int C4 = A7;
+const int T4 = A8;
+const int C5 = A14;
+const int T5 = A15;
+const float Sf1 = -42.80; 
+const float Sf2 = 2.26;
+const float Sf3 = -31.01;
+const float Sf4 = 26.77;
+const float Sf5 = 204.604;
+float temp1, temp2, temp3, temp4, temp5;
+float TZero1, TZero2, TZero3, TZero4, TZero5; 
+float Vzero1, Vzero2, Vzero3, Vzero4,Vzero5;
+float vgas1, vgas2, vgas3, vgas4,vgas5;
+float cREV1, cREV2, cREV3,cREV4,cREV5;
+O3 sensor1(C1, T1, Sf1);
+CO sensor2(C2, T2, Sf2);
+NO2 sensor3(C3, T3, Sf3); 
+SO2 sensor4(C4, T4, Sf4);
+H2S sensor5(C5, T5, Sf5); 
+int sensorIn = A11;
+int analogPin = A9; // pin arduino yang terhubung dengan pin S modul sensor tegangan
+float Vmodul = 0.0; 
+float hasil = 0.0;
+float R1 = 30000.0; //30k
+float R2 = 7500.0; //7500 ohm resistor, 
+int value = 0;
+const int pinADC = A10;
+int sensitivitas = 185; //tegantung sensor arus yang digunakan, yang ini 5A
+int nilaiadc= 00;
+int teganganoffset = 2500; //nilai pembacaan offset saat tidak ada arus yang lewat
+double tegangan = 00;
+double nilaiarus = 00;
+DHT dht(DHTPIN, DHTTYPE);
+File dataFile;
+int led = 13;
+RTC_DS3231 rtc;
+char namaHari[7][12] = {"Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"};
+
+void setup(){
+  //Serial.flush();
+  mySerial.begin(9600); 
+  Serial.begin(9600);
+ // Serial.setTimeout(1500);
+ // dht.begin();
+  analogReference(DEFAULT);
+  pinMode(led, OUTPUT); 
+  Serial.print("ayo moco bismillah sek, sabar nduk, sek ngecek kertu...");
+  pinMode(53, OUTPUT);
+  pinMode(led, OUTPUT);
+  digitalWrite(53, HIGH);
+  if (!SD.begin(53)) {
+  Serial.println("Kertune gak kedeteksi, cek neh");
+  digitalWrite(led, HIGH);
+  return;}
+  digitalWrite(led, LOW);
+  Serial.println("kertune wes kenek");
+  dataFile = SD.open("lapan.txt", FILE_WRITE);
+  if (dataFile) {
+    Serial.println("Sek yo, cek informasi...");
+    dataFile.println("Sek yo, cek informasi...");
+    Serial.println("");
+    dataFile.println("");
+    Serial.println("Iki Project TA ndek LAPAN");
+    dataFile.println("Iki Project TA ndek LAPAN");
+    Serial.println("");
+    dataFile.println("");
+    Serial.println("<<< Lapan Sistem 2 >>>");
+    dataFile.println("<<< Lapan Sistem 2 >>>");
+    Serial.println("           ");
+    dataFile.println("           ");
+    dataFile.close();}
+    else {
+    Serial.println("gak iso mbukak lapan.txt");}
+    rtc.begin(); 
+  if (rtc.lostPower()) {
+  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));   
+  }
+}
+
+void loop(){
+  DateTime now = rtc.now();  
+  printAngka(now.day());
+  Serial.print("/");
+  printAngka(now.month());
+  Serial.print("/");
+  printAngka(now.year()); 
+  Serial.print("  "); 
+  printAngka(now.hour());
+  Serial.print(":");
+  printAngka(now.minute());
+  Serial.print(":");
+  printAngka(now.second());
+  Serial.print("  "); 
+   
+//  float h = dht.readHumidity();
+//  float t = dht.readTemperature();
+//  float f = dht.readTemperature(true);
+//  if (isnan(h) || isnan(t) || isnan(f)) {
+//    Serial.println(F("Failed to read from DHT sensor!"));
+//    return;
+//  }
+//  float hif = dht.computeHeatIndex(f, h);
+//  float hic = dht.computeHeatIndex(t, h, false);
+//  Serial.print(F(" Humidity: "));
+//  Serial.print(h);
+//  Serial.print(F(" %  Temperature: "));
+//  Serial.print(t);
+//  Serial.print(F(" °C  "));
+//
+//  if(Serial.find(0x42)){  
+//    Serial.readBytes(buf,LENG);
+//
+//    if(buf[0] == 0x4d){
+//      if(checkValue(buf,LENG)){
+//        PM01Value=transmitPM01(buf); 
+//        PM2_5Value=transmitPM2_5(buf)/5;
+//        PM10Value=transmitPM10(buf); 
+//      }
+//    }
+//  }
+//
+//  static unsigned long OledTimer=millis();
+//    if (millis() - OledTimer >=1000)
+//    {
+//      OledTimer=millis();
+//
+//      Serial.print(" PM2.5: ");
+//      Serial.print(PM2_5Value);
+//      Serial.print("  ug/m3 ");
+//
+//    }
+//    
+//  int sensorValue = analogRead(sensorIn);
+//  float voltage = sensorValue*(5000/1024);
+//  if(voltage == 0)
+//  {
+//    Serial.println("Fault");
+//  }
+//  else if(voltage < 400)
+//  {
+//    Serial.println("preheating");
+//  }
+//  else
+//  {
+//    int voltage_diference=voltage-400;
+//    float concentration=voltage_diference*50.0/32.0;
+//    Serial.print (" CO2: ");
+//    Serial.print( concentration);
+//    Serial.print(" ppm ");
+//  }
+
+  temp1 = sensor1.getTemp(1,"C");  
+  vgas1 = sensor1.getVgas(1)/1000;
+  cREV1 = (vgas1*23.5);
+  Serial.print(" O3: ");  
+  Serial.print(cREV1);
+  Serial.print(" ");
+  temp2 = sensor2.getTemp(2,"C");  
+  vgas2 = sensor2.getVgas(2)/100000;
+  cREV2 = (vgas2);
+  Serial.print(" CO: ");  
+  Serial.print(cREV2);
+  Serial.print(" ");
+  temp3 = sensor3.getTemp(3,"C");  
+  vgas3 = sensor3.getVgas(3)/100000;
+  cREV3 = (vgas3);
+  Serial.print(" NO2: ");  
+  Serial.print(cREV3);
+  Serial.print(" ");
+  temp4 = sensor4.getTemp(4,"C");  
+  vgas4 = sensor4.getVgas(4)/100000;
+  cREV4 = (vgas4);
+  Serial.print(" SO2: ");  
+  Serial.print(cREV4);
+  Serial.print(" ");
+  temp5 = sensor5.getTemp(5,"C");  
+  vgas5 = sensor5.getVgas(5)/100000;
+  cREV5 = (vgas5);
+  Serial.print("  H2S: ");  
+  Serial.print(cREV5);
+
+  data_olah();
+//  Serial.print("Nilai ADC yang terbaca = " );
+//  Serial.print(nilaiadc);
+// 
+//  Serial.print("\t tegangan (mV) = ");
+//  Serial.print(tegangan,3);
+ 
+  Serial.print("  Arus Arus sistem 2: ");
+  Serial.print(nilaiarus,3);
+
+  
+  value = analogRead(analogPin);
+   Vmodul = (value * 5.0) / 1024.0;
+   hasil = (Vmodul / (R2/(R1+R2)))+0.1;
+// 
+//  Serial.print(" Tegangan keluaran modul = ");
+//  Serial.print(Vmodul,2);
+//  Serial.print("volt");
+  Serial.print("  Tegangan sistem 2: ");
+  Serial.print(hasil,2);
+  Serial.println("volt");
+  
+dataFile = SD.open("lapan.txt", FILE_WRITE);
+//int voltage_diference=voltage-400;
+//float concentration=voltage_diference*50.0/32.0;
+if (dataFile) {
+  digitalWrite(led, LOW);
+  dataFile.print(now.day());
+  dataFile.print("/");
+  dataFile.print(now.month());
+  dataFile.print("/");
+  dataFile.print(now.year()); 
+  dataFile.print("  "); 
+  dataFile.print(now.hour());
+  dataFile.print(":");
+  dataFile.print(now.minute());
+  dataFile.print(":");
+  dataFile.print(now.second());
+  dataFile.print("  ");  
+//  dataFile.print(F(" Humidity: "));
+//  dataFile.print(h);
+//  dataFile.print(F(" %  Temperature: "));
+//  dataFile.print(t);
+//  dataFile.print(F(" °C  "));
+//  dataFile.print(" PM2.5: ");
+//  dataFile.print(PM2_5Value);
+//  dataFile.print("  ug/m3 ");
+//  dataFile.print (" CO2 ");
+//  dataFile.print( concentration);
+//  dataFile.print(" ppm ");
+//  dataFile.print(" O3: ");  
+//  dataFile.print(cREV1);
+  dataFile.print(" CO: ");  
+  dataFile.print(cREV2);
+  dataFile.print(" NO2: ");  
+  dataFile.print(cREV3);
+  dataFile.print(" SO2: ");  
+  dataFile.print(cREV4);
+  dataFile.print(" H2S: ");  
+  dataFile.print(cREV5);
+//  data_olah();
+//  dataFile.print("Nilai ADC yang terbaca = " );
+//  dataFile.print(nilaiadc);
+ 
+  //dataFile.print("\t tegangan (mV) = ");
+ // dataFile.print(tegangan,3);
+ 
+  dataFile.print("  Arus sistem 2: ");
+  dataFile.print(nilaiarus,3);
+//  dataFile.print(" Tegangan keluaran modul = ");
+//  dataFile.print(Vmodul,2);
+//  dataFile.print("volt");
+  dataFile.print("  Tegangan sistem 2: ");
+  dataFile.print(hasil,2);
+  dataFile.println("volt");
+  dataFile.close();
+  }  
+  else {
+    Serial.println("Hayo gak kenek.txt");
+    Serial.println("Sabar nduk, cek disik kabele yo :)");
+    digitalWrite(led, HIGH);
+    delay(60000); }
+    
+  Send2Pachube();
+  if (mySerial.available())
+  Serial.write(mySerial.read());
+  //delay (60000);
+}
+
+void printAngka(int digits){
+   if(digits < 10){
+   Serial.print('0');
+   Serial.print(digits);
+   }
+   else Serial.print(digits);
+ }
+//char checkValue(unsigned char *thebuf, char leng)
+//{
+//  char receiveflag=0;
+//  int receiveSum=0;
+//
+//  for(int i=0; i<(leng-2); i++){
+//  receiveSum=receiveSum+thebuf[i];
+//  }
+//  receiveSum=receiveSum + 0x42;
+//
+//  if(receiveSum == ((thebuf[leng-2]<<8)+thebuf[leng-1]))  
+//  {
+//    receiveSum = 0;
+//    receiveflag = 1;
+//  }
+//  return receiveflag;
+//}
+//
+//int transmitPM01(unsigned char *thebuf)
+//{
+//  int PM01Val;
+//  PM01Val=((thebuf[3]<<8) + thebuf[4]); 
+//  return PM01Val;
+//}
+//
+////transmit PM Value to PC
+//int transmitPM2_5(unsigned char *thebuf)
+//{
+//  int PM2_5Val;
+//  PM2_5Val=((thebuf[5]<<8) + thebuf[6]);
+//  return PM2_5Val;
+//  }
+//int transmitPM10(unsigned char *thebuf)
+//{
+//  int PM10Val;
+//  PM10Val=((thebuf[7]<<8) + thebuf[8]); 
+//  return PM10Val;
+//}
+void Send2Pachube()
+{
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  float f = dht.readTemperature(true);
+  int sensorValue = analogRead(sensorIn);
+  float voltage = sensorValue*(5000/1024);
+  int voltage_diference=voltage-400;
+  float concentration=voltage_diference*50.0/32.0;
+  mySerial.println("AT");
+  delay(1000);
+  mySerial.println("AT+CPIN?");
+  delay(1000);
+  mySerial.println("AT+CREG?");
+  delay(1000);
+  mySerial.println("AT+CGATT?");
+  delay(1000);
+  mySerial.println("AT+CIPSHUT");
+  delay(1000);
+  mySerial.println("AT+CIPSTATUS");
+  delay(2000);
+  mySerial.println("AT+CIPMUX=0");
+  delay(2000);
+  ShowSerialData();
+  mySerial.println("AT+CSTT=\"internet\",\"wap\",\"wap123\"");
+  delay(1000);
+  ShowSerialData();
+  mySerial.println("AT+CIICR");
+  delay(1250);
+  ShowSerialData();
+  mySerial.println("AT+CIFSR");
+  delay(1500);
+  ShowSerialData();
+  mySerial.println("AT+CIPSPRT=0");
+  delay(1500);
+  ShowSerialData();
+  mySerial.println("AT+CIPSTART=\"TCP\",\"api.thingspeak.com\",\"80\"");
+  delay(2500);
+  ShowSerialData();
+  mySerial.println("AT+CIPSEND");
+  delay(2000);
+  ShowSerialData();
+  String str="GET http://api.thingspeak.com/update?api_key=PSTKLHT437Z6YITK&field1=" + String(cREV1) +"&field2="+String(cREV2)+"&field3="+String(cREV3)+"&field4="+String(cREV4)+"&field5="+String(cREV5);
+  mySerial.println(str);
+  delay(6000);
+  ShowSerialData();
+  mySerial.println((char)26);//sending
+  delay(2250);
+  mySerial.println();
+  ShowSerialData();
+  mySerial.println("AT+CIPSHUT");
+  delay(100);
+  ShowSerialData();
+}
+void ShowSerialData()
+{
+  while(mySerial.available()!=0)
+    Serial.write(mySerial.read());
+}
+void data_olah(){
+  nilaiadc = analogRead(pinADC);
+  tegangan = (nilaiadc / 1024.0) * 5000;
+  nilaiarus = ((tegangan - teganganoffset) / sensitivitas);}
