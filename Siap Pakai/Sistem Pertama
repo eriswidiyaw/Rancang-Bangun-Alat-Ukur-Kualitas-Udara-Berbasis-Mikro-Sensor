@@ -1,0 +1,288 @@
+#include <Arduino.h>
+#include <DHT.h>;
+#include <SPI.h>
+#include <SD.h>
+#include <SoftwareSerial.h>
+#include <String.h>
+#include <Wire.h>
+#include <ds3231.h>
+
+#define DHTPIN 15
+#define DHTTYPE DHT22
+#define LENG 31   //0x42 + 31 bytes equal to 32 bytes
+
+DHT dht(DHTPIN, DHTTYPE);
+SoftwareSerial mySerial(10, 11);
+
+struct ts t;
+unsigned char buf[LENG];
+
+int chk;
+int sensorValue;
+int voltage_diference;
+int relayValue;
+float concentration;
+float voltage;
+float relayVoltage;
+float hum; 
+float temp;
+
+const int chipSelect = 53;
+
+int sensorIn = A0;
+int relayIn = A8;
+
+int PM01Value=0;
+int PM2_5Value=0;
+int PM10Value=0;
+
+void setup() 
+{
+  Wire.begin();
+  dht.begin();
+  mySerial.begin(9600);
+  
+  Serial.begin(9600);
+  while (!Serial){;}
+  Serial.print("Initializing SD card...");
+  if (!SD.begin(chipSelect)) 
+  {
+    Serial.println("Card failed, or not present");
+    while (1);
+  }
+  Serial.println("Card initialized.");
+  
+  DS3231_init(DS3231_set);
+  t.hour=11; 
+  t.min=24;
+  t.sec=0;
+  t.mday=24;
+  t.mon=05;
+  t.year=2021;
+  DS3231_set(t);
+
+  analogReference(DEFAULT);
+  Serial.setTimeout(1500);
+}
+
+void loop() 
+{
+  File dataFile = SD.open("meijun.txt", FILE_WRITE);
+  sensorValue = analogRead(sensorIn);
+  relayValue = analogRead(relayIn);
+  voltage = sensorValue*(5000/1024.0);
+  voltage_diference = voltage - 400;
+  concentration = voltage_diference*50.0/16.0;
+  relayVoltage = relayValue*(5000/1023.0);
+  hum = dht.readHumidity();
+  temp= dht.readTemperature();
+  DS3231_get(&t);
+  
+  if(Serial.find(0x42)){    //start to read when detect 0x42
+    Serial.readBytes(buf,LENG);
+
+    if(buf[0] == 0x4d){
+      if(checkValue(buf,LENG)){
+        PM01Value=transmitPM01(buf); //count PM1.0 value of the air detector module
+        PM2_5Value=transmitPM2_5(buf);//count PM2.5 value of the air detector module
+        PM10Value=transmitPM10(buf); //count PM10 value of the air detector module
+      }
+    }
+  }
+
+  static unsigned long OledTimer=millis();
+  if (millis() - OledTimer >=1000)
+  {
+      OledTimer=millis();
+      
+      if (dataFile) {
+        dataFile.print(t.mday);
+        dataFile.print("/");
+        dataFile.print(t.mon);
+        dataFile.print("/");
+        dataFile.print(t.year);
+        dataFile.print(" ");
+        dataFile.print(t.hour);
+        dataFile.print(":");
+        dataFile.print(t.min);
+        dataFile.print(":");
+        dataFile.print(t.sec);
+
+        dataFile.print(", RH : ");
+        dataFile.print(hum);
+        dataFile.print(" %, T : ");
+        dataFile.print(temp);
+        dataFile.print(" C");
+
+        dataFile.print(", CO2 : ");
+        dataFile.print(concentration);
+        dataFile.print(" ppm");
+
+        dataFile.print(", PM2.5 : ");
+        dataFile.print(PM2_5Value);
+        dataFile.print(" ug/m3");
+
+        dataFile.print(", Relay : ");
+        dataFile.print(relayVoltage);
+        dataFile.println(" mV");
+    
+        dataFile.close();
+      } else {
+        Serial.println("error opening datalogger.txt");
+      }
+
+      Serial.print(t.mday);
+      Serial.print("/");
+      Serial.print(t.mon);
+      Serial.print("/");
+      Serial.print(t.year);
+      Serial.print(" ");
+      Serial.print(t.hour);
+      Serial.print(":");
+      Serial.print(t.min);
+      Serial.print(":");
+      Serial.print(t.sec);
+
+      Serial.print(", RH : ");
+      Serial.print(hum);
+      Serial.print(" %, T : ");
+      Serial.print(temp);
+      Serial.print(" C");
+
+      Serial.print(", CO2 : ");
+      Serial.print(concentration);
+      Serial.print(" ppm");
+
+      Serial.print(", PM2.5 : ");
+      Serial.print(PM2_5Value);
+      Serial.print(" ug/m3");
+
+      Serial.print(", Relay : ");
+      Serial.print(relayVoltage);
+      Serial.println(" mV");
+
+      Thingspeak();
+      if (mySerial.available()) {
+        Serial.write(mySerial.read());
+      }
+      delay(81000);
+  } 
+  
+}
+
+void Thingspeak()
+{
+  mySerial.println("AT");
+  delay(1000);
+
+  mySerial.println("AT+CPIN?");
+  delay(1000);
+
+  mySerial.println("AT+CREG?");
+  delay(1000);
+
+  mySerial.println("AT+CGATT?");
+  delay(1000);
+
+  mySerial.println("AT+CIPSHUT");
+  delay(1000);
+
+  mySerial.println("AT+CIPSTATUS");
+  delay(2000);
+
+  mySerial.println("AT+CIPMUX=0");
+  delay(2000);
+ 
+  ShowSerialData();
+ 
+  mySerial.println("AT+CSTT=\"internet\"");//start task and setting the APN,
+  delay(1000);
+ 
+  ShowSerialData();
+ 
+  mySerial.println("AT+CIICR");//bring up wireless connection
+  delay(3000);
+ 
+  ShowSerialData();
+ 
+  mySerial.println("AT+CIFSR");//get local IP adress
+  delay(2000);
+ 
+  ShowSerialData();
+ 
+  mySerial.println("AT+CIPSPRT=0");
+  delay(3000);
+ 
+  ShowSerialData();
+  
+  mySerial.println("AT+CIPSTART=\"TCP\",\"api.thingspeak.com\",\"80\"");//start up the connection
+  delay(6000);
+ 
+  ShowSerialData();
+ 
+  mySerial.println("AT+CIPSEND");//begin send data to remote server
+  delay(4000);
+  ShowSerialData();
+  
+  String str="GET http://api.thingspeak.com/update?api_key=PDYQ0E99AC73DT23&field1="+String(temp)+"&field2="+String(hum)+"&field3="+String(concentration)+"&field4="+String(PM2_5Value)+"&field5="+String(relayVoltage);
+  mySerial.println(str);//begin send data to remote server
+  delay(4000);
+  ShowSerialData();
+
+  mySerial.println((char)26);//sending
+  delay(5000);//waitting for reply, important! the time is base on the condition of internet 
+  mySerial.println();
+ 
+  ShowSerialData();
+ 
+  mySerial.println("AT+CIPSHUT");//close the connection
+  delay(100);
+  ShowSerialData();
+}
+
+void ShowSerialData()
+{
+  while(mySerial.available()!=0)
+    Serial.write(mySerial.read());
+}
+
+char checkValue(unsigned char *thebuf, char leng)
+{
+  char receiveflag=0;
+  int receiveSum=0;
+
+  for(int i=0; i<(leng-2); i++){
+  receiveSum=receiveSum+thebuf[i];
+  }
+  receiveSum=receiveSum + 0x42;
+
+  if(receiveSum == ((thebuf[leng-2]<<8)+thebuf[leng-1]))  //check the serial data
+  {
+    receiveSum = 0;
+    receiveflag = 1;
+  }
+  return receiveflag;
+}
+
+int transmitPM01(unsigned char *thebuf)
+{
+  int PM01Val;
+  PM01Val=((thebuf[3]<<8) + thebuf[4]); //count PM1.0 value of the air detector module
+  return PM01Val;
+}
+
+//transmit PM Value to PC
+int transmitPM2_5(unsigned char *thebuf)
+{
+  int PM2_5Val;
+  PM2_5Val=((thebuf[5]<<8) + thebuf[6]);//count PM2.5 value of the air detector module
+  return PM2_5Val;
+  }
+
+//transmit PM Value to PC
+int transmitPM10(unsigned char *thebuf)
+{
+  int PM10Val;
+  PM10Val=((thebuf[7]<<8) + thebuf[8]); //count PM10 value of the air detector module
+  return PM10Val;
+}
