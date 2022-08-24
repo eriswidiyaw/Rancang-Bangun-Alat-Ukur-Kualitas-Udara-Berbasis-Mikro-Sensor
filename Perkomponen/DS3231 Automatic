@@ -1,0 +1,31 @@
+#include <RTC.h>
+#include <Wire.h>
+#include <DS3231.h> //mengincludekan library DS3231
+
+static const uint8_t pinsda = SDA; 
+static const uint8_t pinscl = SCL; 
+
+static DS3231 RTC;
+ 
+void setup()
+{
+  Serial.begin(9600); //set komunikasi baut serial monitor pada 115200
+  RTC.begin();
+}
+ 
+void loop()
+{
+    Serial.print(RTC.getDay());
+    Serial.print("-");
+    Serial.print(RTC.getMonth());
+    Serial.print("-");
+    Serial.print(RTC.getYear());
+    Serial.print(" ");
+    Serial.print(RTC.getHours());
+    Serial.print(":");
+    Serial.print(RTC.getMinutes());
+    Serial.print(":");
+    Serial.print(RTC.getSeconds());
+    Serial.print("");
+}
+ 
