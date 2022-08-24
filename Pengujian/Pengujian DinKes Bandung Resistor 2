@@ -1,0 +1,345 @@
+#include "Arduino.h"
+#include "ULP.h"
+
+#include <Wire.h>
+#include <RTC.h>
+#include <SPI.h>
+#include <SD.h>
+
+#include <SoftwareSerial.h>
+#include <String.h>
+
+DS3231 RTC;
+SoftwareSerial mySerial(10, 11);
+const int chipSelect = 53;
+
+// These constants won't change.  They're used to give names to the pins used and to the sensitivity factors of the sensors:
+
+//CO
+const int C1 = A0; //change these to the pins you are using, only need Vgas and Vtemp connected
+const int T1 = A1;
+
+//H2S
+const int C2 = A2;
+const int T2 = A3;
+
+//NO2
+const int C3 = A6;
+const int T3 = A7;
+
+//SO2
+const int C4 = A8;
+const int T4 = A9;
+
+//O3
+const int C5 = A11;
+const int T5 = A12;
+
+//CO
+const float Sf1 =2.32 ;   //change this to your sensitivity factor in nA/ppm
+
+//H2S
+const float Sf2 = 204.64; //change this to your sensitivity factor in nA/ppm
+
+//NO2
+const float Sf3 = -27.66; //change this to your sensitivity factor in nA/ppm
+
+//SO2
+const float Sf4 = 26.77; //change this to your sensitivity factor in nA/ppm
+
+//O3
+const float Sf5 = 42.8; //change this to your sensitivity factor in nA/ppm
+
+float temp1, temp2, temp3, temp4, temp5;
+float Vzero1, Vzero2, Vzero3, Vzero4, Vzero5;
+float zero1, zero2, zero3, zero4, zero5;
+
+CO sensor1(C1, T1, Sf1);  //Sensor Types are EtOH, H2S, CO, IAQ, SO2, NO2, RESP, O3, and SPEC (custom)
+H2S sensor2(C2, T2, Sf2); //Example O3
+NO2 sensor3(C3, T3, Sf3); //Example H2S
+SO2 sensor4(C4, T4, Sf4);  //Example H2S
+O3 sensor5(C5, T5, Sf5);  //Example H2S
+
+//  Include these if using different boards with different voltages
+//float ULP::_Vcc = 5.0;  //analogRead Reference Voltage
+//float ULP::_Vsup =3.3;  //voltage supplied to V+ of ULP, ideally 3.3 Volts 
+
+void setup(){
+
+  Serial.flush();
+  
+  mySerial.begin(9600);
+  
+  Serial.begin(9600);
+  while (!Serial)
+  {;}
+
+  Serial.print("NONTO I KERTU MEMORI E...");
+
+  if (!SD.begin(chipSelect)) 
+  {
+    Serial.println("ASTAGFIRULLAH, KERTU MEMORI E ORA ONO :'(");
+    Serial.println("AKU KUDU PIYEEE :'(");
+    while (1);
+  }
+  Serial.println("ALHAMDULILLAH, KERTU MEMORI E WES ISOOO");
+  Serial.println("SEK MOCO BISMILLAH DISIK YO !");
+  
+  RTC.begin();
+  delay(5000);
+  
+  Serial.println("MONGGO DATANIPUN ! :D");
+
+  Serial.println();
+  Serial.println("Setting Up");
+
+  Serial.print("Vsup for all sensors = ");
+  Serial.println(ULP::_Vsup);
+  Serial.print("Vcc for all sensors = ");
+  Serial.println(ULP::_Vcc);
+  Serial.print("Vref for sensor 1 = ");
+  Serial.println(sensor1._Vref);
+  Serial.print("Vref for sensor 2 = ");
+  Serial.println(sensor2._Vref);
+  Serial.print("Vref for sensor 3 = ");
+  Serial.println(sensor3._Vref);
+  Serial.print("Vref for sensor 4 = ");
+  Serial.println(sensor4._Vref);
+  Serial.print("Vref for sensor 5 = ");
+  Serial.println(sensor5._Vref);
+  
+  //  Using resistor values from board R1, R2, R3 are for setting _Vref and Bias, while R6 sets the gain
+  //  If using modified or custom boards set Vref and Gain like this
+  //long int R1 = 61900, R2 = 1000, R3 = 1000000;
+  //int bias = 1; //alternatively bias=-1; for negative bias.
+  //sensor1.setVref(R1, R2, R3, bias); //will set the new Vref for custom sensor voltage ladder. bias is necessary to set the correct arrangement
+  //sensor1._Gain = 49900; //resistor R6
+
+  //  Vref is not necessary if zero() is called for each sensor. If you already know the sensor zero you can comment this out, and set the zero with zero1 = measured mV.
+  Serial.print("Vzero1 = ");
+  Serial.println(Vzero1 = sensor1.zero());   //.zero() sets and returns the baseline voltage at current temperature with only clean air present
+  Serial.print("Tzero1 = ");
+  Serial.println(sensor1._Tz);
+
+  Serial.print("Vzero2 = ");
+  Serial.println(Vzero2 = sensor2.zero());   //.zero() sets and returns the baseline voltage at current temperature with only clean air present
+  Serial.print("Tzero2 = ");
+  Serial.println(sensor2._Tz);
+
+  Serial.print("Vzero3 = ");
+  Serial.println(Vzero3 = sensor3.zero());   //.zero() sets and returns the baseline voltage at current temperature with only clean air present
+  Serial.print("Tzero3 = ");
+  Serial.println(sensor3._Tz);
+
+  Serial.print("Vzero4 = ");
+  Serial.println(Vzero4 = sensor4.zero());   //.zero() sets and returns the baseline voltage at current temperature with only clean air present
+  Serial.print("Tzero4 = ");
+  Serial.println(sensor4._Tz);
+
+  Serial.print("Vzero5 = ");
+  Serial.println(Vzero5 = sensor5.zero());   //.zero() sets and returns the baseline voltage at current temperature with only clean air present
+  Serial.print("Tzero5 = ");
+  Serial.println(sensor5._Tz);
+  
+  Serial.println("Finished Setting Up");
+  Serial.println("T1, T2, T3, T4, T5, Vgas1, Vgas2, Vgas3, Vgas4, Vgas5, C1, C2, C3, C4, C5");
+
+}
+
+void loop(){
+  
+  File dataFile = SD.open("aprs2.txt", FILE_WRITE);
+  
+  // Use .getTemp(n, "F") to get temp in Fahrenheit, with n as int number of seconds for averaging and "F" or "C" for temp units
+  temp1 = sensor1.getTemp(1,"C"); 
+  temp2 = sensor2.getTemp(1,"C");  
+  temp3 = sensor3.getTemp(1,"C");
+  temp4 = sensor4.getTemp(1,"C");
+  temp5 = sensor5.getTemp(1,"C");
+  
+  if (dataFile)
+  {
+    dataFile.print(RTC.getDay());
+    dataFile.print("/");
+    dataFile.print(RTC.getMonth());
+    dataFile.print("/");
+    dataFile.print(RTC.getYear());
+    dataFile.print(" ");
+    dataFile.print(RTC.getHours());
+    dataFile.print(":");
+    dataFile.print(RTC.getMinutes());
+    dataFile.print(":");
+    dataFile.print(RTC.getSeconds());
+    dataFile.print(", ");
+
+    dataFile.print("T1 : " + String(temp1));
+    dataFile.print(" C, ");
+    dataFile.print("T2 : " + String(temp2));
+    dataFile.print(" C, ");
+    dataFile.print("T3 : " + String(temp3));
+    dataFile.print(" C, ");
+    dataFile.print("T4 : " + String(temp4));
+    dataFile.print(" C, ");
+    dataFile.print("T5 : " + String(temp5));
+    dataFile.print(" C, ");
+  
+    //Use .getVgas(int n) where n is the number of seconds to average
+    dataFile.print("Vgas1 : " + String(sensor1.getVgas(1)));
+    dataFile.print(" mV, ");
+    dataFile.print("Vgas2 : " + String(sensor2.getVgas(1)));
+    dataFile.print(" mV, ");
+    dataFile.print("Vgas3 : " + String(sensor3.getVgas(1)));
+    dataFile.print(" mV, ");
+    dataFile.print("Vgas4 : " + String(sensor4.getVgas(1)));
+    dataFile.print(" mV, ");
+    dataFile.print("Vgas5 : " + String(sensor5.getVgas(1)));
+    dataFile.print(" mV, ");
+  
+    //Use .getConc(1, temp1) where temp1 is in deg C for temperature corrected span
+    dataFile.print("C1 : " + String(sensor1.getConc(1,sensor1.getTemp(1))));
+    dataFile.print(" ppm, ");
+    dataFile.print("C2 : " + String(sensor2.getConc(1,sensor2.getTemp(1))));
+    dataFile.print(" ppm, ");
+    dataFile.print("C3 : " + String(sensor3.getConc(1,sensor3.getTemp(1))));
+    dataFile.print(" ppm, ");
+    dataFile.print("C4 : " + String(sensor4.getConc(1,sensor4.getTemp(1))));
+    dataFile.print(" ppm, ");
+    dataFile.print("C5 : " + String(sensor5.getConc(1,sensor5.getTemp(1))));
+    dataFile.println(" ppm");
+  
+    dataFile.close();
+   }
+   else 
+   {
+    Serial.println("ERROR CUK! DATALOGGER E ORA ISO DIBUKA");
+   }
+  
+  Serial.print(RTC.getDay());
+  Serial.print("/");
+  Serial.print(RTC.getMonth());
+  Serial.print("/");
+  Serial.print(RTC.getYear());
+  Serial.print(" ");
+  Serial.print(RTC.getHours());
+  Serial.print(":");
+  Serial.print(RTC.getMinutes());
+  Serial.print(":");
+  Serial.print(RTC.getSeconds());
+  Serial.print(", ");
+
+  Serial.print("T1 : " + String(temp1));
+  Serial.print(" C, ");
+  Serial.print("T2 : " + String(temp2));
+  Serial.print(" C, ");
+  Serial.print("T3 : " + String(temp3));
+  Serial.print(" C, ");
+  Serial.print("T4 : " + String(temp4));
+  Serial.print(" C, ");
+  Serial.print("T5 : " + String(temp5));
+  Serial.print(" C, ");
+  
+  //Use .getVgas(int n) where n is the number of seconds to average
+  Serial.print("Vgas1 : " + String(sensor1.getVgas(1)));
+  Serial.print(" mV, ");
+  Serial.print("Vgas2 : " + String(sensor2.getVgas(1)));
+  Serial.print(" mV, ");
+  Serial.print("Vgas3 : " + String(sensor3.getVgas(1)));
+  Serial.print(" mV, ");
+  Serial.print("Vgas4 : " + String(sensor4.getVgas(1)));
+  Serial.print(" mV, ");
+  Serial.print("Vgas5 : " + String(sensor5.getVgas(1)));
+  Serial.print(" mV, ");
+  
+  //Use .getConc(1, temp1) where temp1 is in deg C for temperature corrected span
+  Serial.print("C1 : " + String(sensor1.getConc(1,sensor1.getTemp(1))));
+  Serial.print(" ppm, ");
+  Serial.print("C2 : " + String(sensor2.getConc(1,sensor2.getTemp(1))));
+  Serial.print(" ppm, ");
+  Serial.print("C3 : " + String(sensor3.getConc(1,sensor3.getTemp(1))));
+  Serial.print(" ppm, ");
+  Serial.print("C4 : " + String(sensor4.getConc(1,sensor4.getTemp(1))));
+  Serial.print(" ppm, ");
+  Serial.print("C5 : " + String(sensor5.getConc(1,sensor5.getTemp(1))));
+  Serial.println(" ppm");
+
+  ThingSpeak();
+  if (mySerial.available()) {
+    Serial.write(mySerial.read()); 
+  }
+
+  delay(43000);
+}
+
+void ThingSpeak(){
+  mySerial.println("AT");
+  delay(1000);
+
+  mySerial.println("AT+CPIN?");
+  delay(1000);
+
+  mySerial.println("AT+CREG?");
+  delay(1000);
+
+  mySerial.println("AT+CGATT?");
+  delay(1000);
+
+  mySerial.println("AT+CIPSHUT");
+  delay(1000);
+
+  mySerial.println("AT+CIPSTATUS");
+  delay(2000);
+
+  mySerial.println("AT+CIPMUX=0");
+  delay(2000);
+ 
+  ShowSerialData();
+ 
+  mySerial.println("AT+CSTT=\"internet\"");//start task and setting the APN,
+  delay(1000);
+ 
+  ShowSerialData();
+ 
+  mySerial.println("AT+CIICR");//bring up wireless connection
+  delay(3000);
+ 
+  ShowSerialData();
+ 
+  mySerial.println("AT+CIFSR");//get local IP adress
+  delay(2000);
+ 
+  ShowSerialData();
+ 
+  mySerial.println("AT+CIPSPRT=0");
+  delay(3000);
+ 
+  ShowSerialData();
+  
+  mySerial.println("AT+CIPSTART=\"TCP\",\"api.thingspeak.com\",\"80\"");//start up the connection
+  delay(6000);
+ 
+  ShowSerialData();
+ 
+  mySerial.println("AT+CIPSEND");//begin send data to remote server
+  delay(4000);
+  ShowSerialData();
+  
+  String str="GET http://api.thingspeak.com/update?api_key=PSTKLHT437Z6YITK&field1=" + String(temp1)+"&field2="+String(sensor1.getVgas(1))+"&field3="+String(temp2)+"&field4="+String(sensor2.getVgas(1))+"&field5="+String(temp3)+"&field6="+String(sensor3.getVgas(1))+"&field7="+String(temp4)+"&field8="+String(sensor4.getVgas(1));
+  mySerial.println(str);//begin send data to remote server
+  delay(4000);
+  ShowSerialData();
+
+  mySerial.println((char)26);//sending
+  delay(5000);//waitting for reply, important! the time is base on the condition of internet 
+  mySerial.println();
+ 
+  ShowSerialData();
+ 
+  mySerial.println("AT+CIPSHUT");//close the connection
+  delay(100);
+  ShowSerialData();
+}
+ 
+void ShowSerialData(){
+  while(mySerial.available()!=0)
+    Serial.write(mySerial.read());
+}
